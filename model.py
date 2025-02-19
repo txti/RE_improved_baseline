@@ -1,25 +1,30 @@
+from pathlib import Path
+
 import torch
 import torch.nn as nn
-from transformers import AutoModel
 from torch.cuda.amp import autocast
+from transformers import AutoModel
+from transformers.modeling_utils import PreTrainedModel
 
 
-class REModel(nn.Module):
+class REModel(PreTrainedModel):
     def __init__(self, args, config):
-        super().__init__()
+        super().__init__(config=config)
         self.args = args
         self.encoder = AutoModel.from_pretrained(args.model_name_or_path, config=config)
         hidden_size = config.hidden_size
         self.loss_fnt = nn.CrossEntropyLoss()
-        self.classifier = nn.Sequential(
+        self.classifier: nn.Sequential = nn.Sequential(
             nn.Linear(2 * hidden_size, hidden_size),
             nn.ReLU(),
             nn.Dropout(p=args.dropout_prob),
-            nn.Linear(hidden_size, args.num_class)
+            nn.Linear(hidden_size, args.num_class),
         )
 
     @autocast()
-    def forward(self, input_ids=None, attention_mask=None, labels=None, ss=None, os=None):
+    def forward(
+        self, input_ids=None, attention_mask=None, labels=None, ss=None, os=None
+    ):
         outputs = self.encoder(
             input_ids,
             attention_mask=attention_mask,
@@ -35,3 +40,8 @@ class REModel(nn.Module):
             loss = self.loss_fnt(logits.float(), labels)
             outputs = (loss,) + outputs
         return outputs
+
+    def save(self, path):
+        model_dir = Path(path)
+        model_dir.mkdir(parents=True, exist_ok=True)
+        self.save_pretrained(model_dir / f"{self.args.run_name}-retacred.pt")

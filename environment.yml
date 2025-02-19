@@ -1,0 +1,11 @@
+name: re-baseline
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - ipykernel
+  - pandas
+  - datasets
+  - pip:
+    - -r requirements.txt
